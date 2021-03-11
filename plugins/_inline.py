@@ -1,489 +1,361 @@
-# Ultroid - UserBot
-# Copyright (C) 2020 TeamUltroid
-#
-# This file is a part of < https://github.com/TeamUltroid/Ultroid/ >
-# PLease read the GNU Affero General Public License in
-# <https://www.github.com/TeamUltroid/Ultroid/blob/main/LICENSE/>.
+#    TeleBot - UserBot
+#    Copyright (C) 2020 TeleBot
 
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
+
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import asyncio
+import html
 import os
-import random
 import re
-import time
-from datetime import datetime
 from math import ceil
-from platform import python_version as pyver
 
-from git import Repo
-from support import *
-from telethon import Button, __version__
-from telethon.tl.types import InputWebDocument
+from telethon import Button, custom, events, functions
+from telethon.tl.functions.users import GetFullUserRequest
 
-from . import *
+from telebot import ALIVE_NAME, CMD_HELP, CMD_LIST, CUSTOM_PMPERMIT, bot
+from telebot.plugins import telestats
+from telebot.telebotConfig import Var
 
-# ================================================#
-notmine = "This bot is for {}".format(OWNER_NAME)
-ULTROID_PIC = "https://telegra.ph/file/11245cacbffe92e5d5b14.jpg"
-helps = """
-[Uʟᴛʀᴏɪᴅ Sᴜᴘᴘᴏʀᴛ](t.me/ultroidsupport)
-
-**Hᴇʟᴘ Mᴇɴᴜ Oғ {}.
-
-Pʟᴜɢɪɴs ~ {}**
-"""
-
-add_ons = udB.get("ADDONS")
-if add_ons:
-    zhelps = """
-[Uʟᴛʀᴏɪᴅ Sᴜᴘᴘᴏʀᴛ](t.me/ultroidsupport)
-
-**Hᴇʟᴘ Mᴇɴᴜ Oғ {}.
-
-Aᴅᴅᴏɴs ~ {}**
-"""
+PMPERMIT_PIC = os.environ.get("PMPERMIT_PIC", None)
+TELEPIC = (
+    PMPERMIT_PIC
+    if PMPERMIT_PIC
+    else "https://telegra.ph/file/92cfbab6598148837c2e4.jpg"
+)
+PM_WARNS = {}
+PREV_REPLY_MESSAGE = {}
+myid = bot.uid
+mybot = Var.TG_BOT_USER_NAME_BF_HER
+if mybot.startswith("@"):
+    botname = mybot
 else:
-    zhelps = """
-[Uʟᴛʀᴏɪᴅ Sᴜᴘᴘᴏʀᴛ](t.me/ultroidsupport)
+    botname = f"@{mybot}"
+LOG_GP = Var.PRIVATE_GROUP_ID
+MESAG = (
+    str(CUSTOM_PMPERMIT)
+    if CUSTOM_PMPERMIT
+    else "`TeleBot PM security! Please wait for me to approve you. 😊"
+)
+DEFAULTUSER = str(ALIVE_NAME) if ALIVE_NAME else "TeleBot User"
+USER_BOT_WARN_ZERO = "`I had warned you not to spam. Now you have been blocked and reported until further notice.`\n\n**GoodBye!** "
 
-**Hᴇʟᴘ Mᴇɴᴜ Oғ {}.
-
-Aᴅᴅᴏɴs ~ {}
-
-Gᴏ Aɴᴅ Aᴅᴅ ADDONS Vᴀʀ Wɪᴛʜ Vᴀʟᴜᴇ Tʀᴜᴇ**
-"""
-# ============================================#
-
-
-@inline
-@in_owner
-async def e(o):
-    if len(o.text) == 0:
-        b = o.builder
-        uptime = grt((time.time() - start_time))
-        ALIVEMSG = """
-**The Ultroid Userbot...**\n
-✵ **Owner** - `{}`
-✵ **Ultroid** - `{}`
-✵ **UpTime** - `{}`
-✵ **Python** - `{}`
-✵ **Telethon** - `{}`
-✵ **Branch** - `{}`
-""".format(
-            OWNER_NAME,
-            ultroid_version,
-            uptime,
-            pyver(),
-            __version__,
-            Repo().active_branch,
+if Var.LOAD_MYBOT == "True":
+    USER_BOT_NO_WARN = (
+        "**PM Security of [{}](tg://user?id={})**\n\n"
+        "{}\n\n"
+        "For immediate help, PM me via {}"
+        "\nPlease choose why you are here, from the available options\n\n".format(
+            DEFAULTUSER, myid, MESAG, botname
         )
-        res = [
-            b.article(
-                title="Ultroid Userbot",
-                url="https://t.me/TeamUltroid",
-                description="Userbot | Telethon ",
-                text=ALIVEMSG,
-                thumb=InputWebDocument(ULTROID_PIC, 0, "image/jpeg", []),
-                buttons=[
-                    [Button.url(text="Support Group", url="t.me/UltroidSupport")],
-                    [
-                        Button.url(
-                            text="Repo", url="https://github.com/Teamultroid/Ultroid"
-                        )
-                    ],
-                ],
-            )
-        ]
-        await o.answer(res, switch_pm=f"👥 ULTROID PORTAL", switch_pm_param="start")
+    )
+elif Var.LOAD_MYBOT == "False":
+    USER_BOT_NO_WARN = (
+        "**PM Security of [{}](tg://user?id={})**\n\n"
+        "{}\n"
+        "\nPlease choose why you are here, from the available options\n".format(
+            DEFAULTUSER, myid, MESAG
+        )
+    )
 
+CUSTOM_HELP_EMOJI = os.environ.get("CUSTOM_HELP_EMOJI", "⚡")
+HELP_ROWS = int(os.environ.get("HELP_ROWS", 5))
+HELP_COLOUMNS = int(os.environ.get("HELP_COLOUMNS", 3))
 
-if Var.BOT_USERNAME is not None and asst is not None:
+if Var.TG_BOT_USER_NAME_BF_HER is not None and tgbot is not None:
 
-    @inline
-    @in_owner
+    @tgbot.on(events.InlineQuery)  # pylint:disable=E0602
     async def inline_handler(event):
         builder = event.builder
         result = None
         query = event.text
-        if event.query.user_id in sed and query.startswith("ultd"):
-            z = []
-            for x in LIST.values():
-                for y in x:
-                    z.append(y)
-            cmd = len(z) + 10
-            bn = Var.BOT_USERNAME
-            if bn.startswith("@"):
-                bnn = bn.replace("@", "")
-            else:
-                bnn = bn
+        if event.query.user_id == bot.uid and query.startswith("`Userbot"):
+            rev_text = query[::-1]
+            buttons = paginate_help(0, CMD_LIST, "helpme")
             result = builder.article(
-                title="Help Menu",
-                description="Help Menu - UserBot | Telethon ",
-                url="https://t.me/TheUltroid",
-                thumb=InputWebDocument(ULTROID_PIC, 0, "image/jpeg", []),
-                text=f"** Bᴏᴛ Oғ {OWNER_NAME}\n\nMᴀɪɴ Mᴇɴᴜ\n\nPʟᴜɢɪɴs ~ {len(PLUGINS) - 4}\nAᴅᴅᴏɴs ~ {len(ADDONS)}\nTᴏᴛᴀʟ Cᴏᴍᴍᴀɴᴅs ~ {cmd}**",
+                "© TeleBot Help",
+                text="{}\nCurrently Loaded Plugins: {}".format(query, len(CMD_LIST)),
+                buttons=buttons,
+                link_preview=False,
+            )
+        elif event.query.user_id == bot.uid and query == "stats":
+            result = builder.article(
+                title="Stats",
+                text=f"**TeleBot Stats For [{DEFAULTUSER}](tg://user?id={myid})**\n\n__Bot is functioning normally, master!__\n\n(c) @TeleBotSupport",
                 buttons=[
-                    [
-                        Button.inline("• Pʟᴜɢɪɴs", data="hrrrr"),
-                        Button.inline("• Aᴅᴅᴏɴs", data="frrr"),
-                    ],
-                    [
-                        Button.inline("Oᴡɴᴇʀ•ᴛᴏᴏʟꜱ", data="ownr"),
-                        Button.inline("Iɴʟɪɴᴇ•Pʟᴜɢɪɴs", data="inlone"),
-                    ],
+                    [custom.Button.inline("Stats", data="statcheck")],
+                    [Button.url("Repo", "https://github.com/xditya/TeleBot")],
                     [
                         Button.url(
-                            "⚙️Sᴇᴛᴛɪɴɢs⚙️",
-                            url=f"https://t.me/{bnn}?start={ultroid_bot.me.id}",
+                            "Deploy Now!",
+                            "https://dashboard.heroku.com/new?button-url=https%3A%2F%2Fgithub.com%2Fxditya%2FTeleBot&template=https%3A%2F%2Fgithub.com%2Fxditya%2FTeleBot",
                         )
                     ],
-                    [Button.inline("••Cʟᴏꜱᴇ••", data="close")],
                 ],
             )
-            await event.answer([result] if result else None)
-        elif event.query.user_id in sed and query.startswith("paste"):
-            ok = query.split("-")[1]
-            link = f"https://nekobin.com/{ok}"
-            link_raw = f"https://nekobin.com/raw/{ok}"
-            result = builder.article(
-                title="Paste",
-                text="Pᴀsᴛᴇᴅ Tᴏ Nᴇᴋᴏʙɪɴ!",
+        elif event.query.user_id == bot.uid and query.startswith("**PM"):
+            TELEBT = USER_BOT_NO_WARN.format(DEFAULTUSER, myid, MESAG)
+            result = builder.photo(
+                file=TELEPIC,
+                text=TELEBT,
                 buttons=[
                     [
-                        Button.url("NekoBin", url=f"{link}"),
-                        Button.url("Raw", url=f"{link_raw}"),
-                    ]
-                ],
-            )
-            await event.answer([result] if result else None)
-
-    @inline
-    @in_owner
-    @callback("ownr")
-    @owner
-    async def setting(event):
-        await event.edit(
-            buttons=[
-                [
-                    Button.inline("•Pɪɴɢ•", data="pkng"),
-                    Button.inline("•Uᴘᴛɪᴍᴇ•", data="upp"),
-                ],
-                [Button.inline("•Rᴇsᴛᴀʀᴛ•", data="rstrt")],
-                [Button.inline("<- Bᴀᴄᴋ", data="open")],
-            ],
-        )
-
-    @callback("pkng")
-    async def _(event):
-        start = datetime.now()
-        end = datetime.now()
-        ms = (end - start).microseconds / 1000
-        pin = f"🌋Pɪɴɢ = {ms}ms"
-        await event.answer(pin, cache_time=0, alert=True)
-
-    @callback("upp")
-    async def _(event):
-        uptime = grt((time.time() - start_time))
-        pin = f"🙋Uᴘᴛɪᴍᴇ = {uptime}"
-        await event.answer(pin, cache_time=0, alert=True)
-
-    @callback("inlone")
-    @owner
-    async def _(e):
-        button = [
-            [
-                Button.switch_inline(
-                    "Sᴇɴᴅ Oғғɪᴄɪᴀʟ Pʟᴜɢɪɴs",
-                    query="send",
-                    same_peer=True,
-                )
-            ],
-            [
-                Button.switch_inline(
-                    "Pʟᴀʏ Sᴛᴏʀᴇ Aᴘᴘs",
-                    query="app telegram",
-                    same_peer=True,
-                )
-            ],
-            [
-                Button.switch_inline(
-                    "Mᴏᴅᴅᴇᴅ Aᴘᴘs",
-                    query="mods minecraft",
-                    same_peer=True,
-                )
-            ],
-            [
-                Button.switch_inline(
-                    "Sᴇᴀʀᴄʜ Oɴ Gᴏᴏɢʟᴇ",
-                    query="go TeamUltroid",
-                    same_peer=True,
-                )
-            ],
-            [
-                Button.switch_inline(
-                    "Sᴇᴀʀᴄʜ Oɴ Yᴀʜᴏᴏ",
-                    query="yahoo TeamUltroid",
-                    same_peer=True,
-                )
-            ],
-            [
-                Button.switch_inline(
-                    "YᴏᴜTᴜʙᴇ Dᴏᴡɴʟᴏᴀᴅᴇʀ",
-                    query="Ed Sheeran Perfect",
-                    same_peer=True,
-                )
-            ],
-            [
-                Button.switch_inline(
-                    "CʟɪᴘAʀᴛ Sᴇᴀʀᴄʜ",
-                    query="clipart frog",
-                    same_peer=True,
-                )
-            ],
-            [
-                Button.inline(
-                    "<- Bᴀᴄᴋ",
-                    data="open",
-                )
-            ],
-        ]
-        await e.edit(buttons=button, link_preview=False)
-
-    @callback("hrrrr")
-    @owner
-    async def on_plug_in_callback_query_handler(event):
-        xhelps = helps.format(OWNER_NAME, len(PLUGINS) - 4)
-        buttons = paginate_help(0, PLUGINS, "helpme")
-        await event.edit(f"{xhelps}", buttons=buttons, link_preview=False)
-
-    @callback("frrr")
-    @owner
-    async def addon(event):
-        halp = zhelps.format(OWNER_NAME, len(ADDONS))
-        if len(ADDONS) > 0:
-            buttons = paginate_addon(0, ADDONS, "addon")
-            await event.edit(f"{halp}", buttons=buttons, link_preview=False)
-        else:
-            await event.answer(
-                "• Iɴsᴛᴀʟʟ A Pʟᴜɢɪɴ Mᴀɴᴜᴀʟʟʏ Oʀ Aᴅᴅ Vᴀʀ ADDONS Wɪᴛʜ Vᴀʟᴜᴇ True",
-                cache_time=0,
-                alert=True,
-            )
-
-    @callback("rstrt")
-    @owner
-    async def rrst(ult):
-        await restart(ult)
-
-    @callback(
-        re.compile(
-            rb"helpme_next\((.+?)\)",
-        ),
-    )
-    @owner
-    async def on_plug_in_callback_query_handler(event):
-        current_page_number = int(event.data_match.group(1).decode("UTF-8"))
-        buttons = paginate_help(current_page_number + 1, PLUGINS, "helpme")
-        await event.edit(buttons=buttons, link_preview=False)
-
-    @callback(
-        re.compile(
-            rb"helpme_prev\((.+?)\)",
-        ),
-    )
-    @owner
-    async def on_plug_in_callback_query_handler(event):
-        current_page_number = int(event.data_match.group(1).decode("UTF-8"))
-        buttons = paginate_help(current_page_number - 1, PLUGINS, "helpme")
-        await event.edit(buttons=buttons, link_preview=False)
-
-    @callback(
-        re.compile(
-            rb"addon_next\((.+?)\)",
-        ),
-    )
-    @owner
-    async def on_plug_in_callback_query_handler(event):
-        current_page_number = int(event.data_match.group(1).decode("UTF-8"))
-        buttons = paginate_addon(current_page_number + 1, ADDONS, "addon")
-        await event.edit(buttons=buttons, link_preview=False)
-
-    @callback(
-        re.compile(
-            rb"addon_prev\((.+?)\)",
-        ),
-    )
-    @owner
-    async def on_plug_in_callback_query_handler(event):
-        current_page_number = int(event.data_match.group(1).decode("UTF-8"))
-        buttons = paginate_addon(current_page_number - 1, ADDONS, "addon")
-        await event.edit(buttons=buttons, link_preview=False)
-
-    @callback("back")
-    @owner
-    async def backr(event):
-        xhelps = helps.format(OWNER_NAME, len(PLUGINS) - 4)
-        current_page_number = int(upage)
-        buttons = paginate_help(current_page_number, PLUGINS, "helpme")
-        await event.edit(f"{xhelps}", buttons=buttons, link_preview=False)
-
-    @callback("buck")
-    @owner
-    async def backr(event):
-        xhelps = zhelps.format(OWNER_NAME, len(ADDONS))
-        current_page_number = int(addpage)
-        buttons = paginate_addon(current_page_number, ADDONS, "addon")
-        await event.edit(f"{xhelps}", buttons=buttons, link_preview=False)
-
-    @callback("open")
-    @owner
-    async def opner(event):
-        bn = Var.BOT_USERNAME
-        if bn.startswith("@"):
-            bnn = bn.replace("@", "")
-        else:
-            bnn = bn
-        buttons = [
-            [
-                Button.inline("• Pʟᴜɢɪɴs ", data="hrrrr"),
-                Button.inline("• Aᴅᴅᴏɴs", data="frrr"),
-            ],
-            [
-                Button.inline("Oᴡɴᴇʀ•Tᴏᴏʟꜱ", data="ownr"),
-                Button.inline("Iɴʟɪɴᴇ•Pʟᴜɢɪɴs", data="inlone"),
-            ],
-            [
-                Button.url(
-                    "⚙️Sᴇᴛᴛɪɴɢs⚙️", url=f"https://t.me/{bnn}?start={ultroid_bot.me.id}"
-                )
-            ],
-            [Button.inline("••Cʟᴏꜱᴇ••", data="close")],
-        ]
-        z = []
-        for x in LIST.values():
-            for y in x:
-                z.append(y)
-        cmd = len(z) + 10
-        await event.edit(
-            f"** Bᴏᴛ Oғ {OWNER_NAME}\n\nMᴀɪɴ Mᴇɴᴜ\n\nPʟᴜɢɪɴs ~ {len(PLUGINS) - 4}\nAᴅᴅᴏɴs ~ {len(ADDONS)}\nTᴏᴛᴀʟ Cᴏᴍᴍᴀɴᴅs ~ {cmd}**",
-            buttons=buttons,
-            link_preview=False,
-        )
-
-    @callback("close")
-    @owner
-    async def on_plug_in_callback_query_handler(event):
-        await event.edit(
-            "**Mᴇɴᴜ Hᴀs Bᴇᴇɴ Cʟᴏsᴇᴅ**",
-            buttons=Button.inline("Oᴘᴇɴ Mᴀɪɴ Mᴇɴᴜ Aɢᴀɪɴ", data="open"),
-        )
-
-    @callback(
-        re.compile(
-            b"us_plugin_(.*)",
-        ),
-    )
-    @owner
-    async def on_plug_in_callback_query_handler(event):
-        plugin_name = event.data_match.group(1).decode("UTF-8")
-        help_string = f"Plugin Name - `{plugin_name}`\n"
-        try:
-            for i in HELP[plugin_name]:
-                help_string += i
-        except BaseException:
-            pass
-        if help_string == "":
-            reply_pop_up_alert = "{} has no detailed help...".format(plugin_name)
-        else:
-            reply_pop_up_alert = help_string
-        reply_pop_up_alert += "\n© @TheUltroid"
-        try:
-            if event.query.user_id in sed:
-                await event.edit(
-                    reply_pop_up_alert,
-                    buttons=[
-                        Button.inline("<- Bᴀᴄᴋ", data="back"),
-                        Button.inline("••Cʟᴏꜱᴇ••", data="close"),
+                        custom.Button.inline("Request ", data="req"),
+                        custom.Button.inline("Chat 💭", data="chat"),
                     ],
-                )
-            else:
-                reply_pop_up_alert = notmine
-                await event.answer(reply_pop_up_alert, cache_time=0)
-        except BaseException:
-            halps = "Do .help {} to get the list of commands.".format(plugin_name)
-            await event.edit(halps)
-
-    @callback(
-        re.compile(
-            b"add_plugin_(.*)",
-        ),
-    )
-    @owner
-    async def on_plug_in_callback_query_handler(event):
-        plugin_name = event.data_match.group(1).decode("UTF-8")
-        help_string = ""
-        try:
-            for i in HELP[plugin_name]:
-                help_string += i
-        except BaseException:
-            try:
-                for u in CMD_HELP[plugin_name]:
-                    help_string = (
-                        f"Plugin Name-{plugin_name}\n\n✘ Commands Available-\n\n"
-                    )
-                    help_string += str(CMD_HELP[plugin_name])
-            except BaseException:
-                try:
-                    if plugin_name in LIST:
-                        help_string = (
-                            f"Plugin Name-{plugin_name}\n\n✘ Commands Available-\n\n"
+                    [custom.Button.inline("To spam 🚫", data="heheboi")],
+                    [custom.Button.inline("What is this ❓", data="pmclick")],
+                ],
+            )
+        elif event.query.user_id == bot.uid and query == "repo":
+            result = builder.article(
+                title="Repository",
+                text=f"TeleBot - Telegram Userbot.",
+                buttons=[
+                    [
+                        Button.url("Repo", "https://github.com/xditya/TeleBot"),
+                        Button.url(
+                            "Deploy",
+                            "https://dashboard.heroku.com/new?button-url=https%3A%2F%2Fgithub.com%2Fxditya%2FTeleBot&template=https%3A%2F%2Fgithub.com%2Fxditya%2FTeleBot",
+                        ),
+                    ],
+                    [Button.url("Support", "https://t.me/TeleBotSupport")],
+                ],
+            )
+        else:
+            result = builder.article(
+                "Source Code",
+                text="**Welcome to TeleBot**\n\n`Click below buttons for more`",
+                buttons=[
+                    [custom.Button.url("Creator👨‍🦱", "https://t.me/its_xditya")],
+                    [
+                        custom.Button.url(
+                            "👨‍💻Source Code‍💻", "https://github.com/xditya/TeleBot"
+                        ),
+                        custom.Button.url(
+                            "Deploy 🌀",
+                            "https://dashboard.heroku.com/new?template=https%3A%2F%2Fgithub.com%2Fxditya%2FTeleBot",
+                        ),
+                    ],
+                    [
+                        custom.Button.url(
+                            "Updates and Support Group↗️", "https://t.me/TeleBotSupport"
                         )
-                        for d in LIST[plugin_name]:
-                            help_string += HNDLR + d
-                            help_string += "\n"
-                except BaseException:
-                    pass
-        if help_string == "":
-            reply_pop_up_alert = "{} has no detailed help...".format(plugin_name)
-        else:
-            reply_pop_up_alert = help_string
-        reply_pop_up_alert += "\n© @TheUltroid"
-        try:
-            if event.query.user_id in sed:
-                await event.edit(
-                    reply_pop_up_alert,
-                    buttons=[
-                        Button.inline("<- Bᴀᴄᴋ", data="buck"),
-                        Button.inline("••Cʟᴏꜱᴇ••", data="close"),
                     ],
+                ],
+                link_preview=False,
+            )
+        await event.answer([result] if result else None)
+
+    @tgbot.on(
+        events.callbackquery.CallbackQuery(  # pylint:disable=E0602
+            data=re.compile(rb"helpme_next\((.+?)\)")
+        )
+    )
+    async def on_plug_in_callback_query_handler(event):
+        if event.query.user_id == bot.uid:  # pylint:disable=E0602
+            current_page_number = int(event.data_match.group(1).decode("UTF-8"))
+            buttons = paginate_help(current_page_number + 1, CMD_LIST, "helpme")
+            # https://t.me/TelethonChat/115200
+            await event.edit(buttons=buttons)
+        else:
+            reply_pop_up_alert = (
+                "Please get your own Userbot from @TeleBotHelp , and don't use mine!"
+            )
+            await event.answer(reply_pop_up_alert, cache_time=0, alert=True)
+
+    @tgbot.on(events.callbackquery.CallbackQuery(data=re.compile(b"pmclick")))
+    async def on_pm_click(event):
+        if event.query.user_id == bot.uid:
+            reply_pop_up_alert = "This ain't for you, master!"
+            await event.answer(reply_pop_up_alert, cache_time=0, alert=True)
+        else:
+            await event.edit(
+                f"This is the PM Security for {DEFAULTUSER} to keep away spammers and retards.\n\nProtected by [TeleBot](t.me/TeleBotSupport)"
+            )
+
+    @tgbot.on(events.callbackquery.CallbackQuery(data=re.compile(b"reopen")))
+    async def megic(event):
+        if event.query.user_id == bot.uid:
+            buttons = paginate_help(0, CMD_LIST, "helpme")
+            await event.edit("Menu Re-opened", buttons=buttons)
+        else:
+            reply_pop_up_alert = "This bot ain't for u!!"
+            await event.answer(reply_pop_up_alert, cache_time=0, alert=True)
+
+    @tgbot.on(events.callbackquery.CallbackQuery(data=re.compile(b"req")))
+    async def on_pm_click(event):
+        if event.query.user_id == bot.uid:
+            reply_pop_up_alert = "This ain't for you, master!"
+            await event.answer(reply_pop_up_alert, cache_time=0, alert=True)
+        else:
+            await event.edit(
+                f"Okay, `{DEFAULTUSER}` would get back to you soon!\nTill then please **wait patienly and don't spam here.**"
+            )
+            target = await event.client(GetFullUserRequest(event.query.user_id))
+            first_name = html.escape(target.user.first_name)
+            ok = event.query.user_id
+            if first_name is not None:
+                first_name = first_name.replace("\u2060", "")
+            tosend = f"Hey {DEFAULTUSER}, [{first_name}](tg://user?id={ok}) is **requesting** something in PM!"
+            await tgbot.send_message(LOG_GP, tosend)
+
+    @tgbot.on(events.callbackquery.CallbackQuery(data=re.compile(b"chat")))
+    async def on_pm_click(event):
+        event.query.user_id
+        if event.query.user_id == bot.uid:
+            reply_pop_up_alert = "This ain't for you, master!"
+            await event.answer(reply_pop_up_alert, cache_time=0, alert=True)
+        else:
+            await event.edit(
+                f"Oho, you want to chat...\nPlease wait and see if {DEFAULTUSER} is in a mood to chat, if yes, he will be replying soon!\nTill then, **do not spam.**"
+            )
+            target = await event.client(GetFullUserRequest(event.query.user_id))
+            ok = event.query.user_id
+            first_name = html.escape(target.user.first_name)
+            if first_name is not None:
+                first_name = first_name.replace("\u2060", "")
+            tosend = f"Hey {DEFAULTUSER}, [{first_name}](tg://user?id={ok}) wants to PM you for **Random Chatting**!"
+            await tgbot.send_message(LOG_GP, tosend)
+
+    @tgbot.on(events.callbackquery.CallbackQuery(data=re.compile(b"plshelpme")))
+    async def on_pm_click(event):
+        if event.query.user_id == bot.uid:
+            reply_pop_up_alert = "This ain't for you, master!"
+            await event.answer(reply_pop_up_alert, cache_time=0, alert=True)
+        else:
+            await event.edit(
+                f"Oh!\n{DEFAULTUSER} would be glad to help you out...\nPlease leave your message here **in a single line** and wait till I respond 😊"
+            )
+            target = await event.client(GetFullUserRequest(event.query.user_id))
+            first_name = html.escape(target.user.first_name)
+            ok = event.query.user_id
+            if first_name is not None:
+                first_name = first_name.replace("\u2060", "")
+            tosend = f"Hey {DEFAULTUSER}, [{first_name}](tg://user?id={ok}) wants to PM you for **help**!"
+            await tgbot.send_message(LOG_GP, tosend)
+
+    @tgbot.on(events.callbackquery.CallbackQuery(data=re.compile(b"heheboi")))
+    async def on_pm_click(event):
+        if event.query.user_id == bot.uid:
+            reply_pop_up_alert = "This ain't for you, master!"
+            await event.answer(reply_pop_up_alert, cache_time=0, alert=True)
+        else:
+            await event.edit(
+                f"Oh, so you are here to spam 😤\nGoodbye.\nYour message has been read and successfully ignored."
+            )
+            await borg(functions.contacts.BlockRequest(event.query.user_id))
+            target = await event.client(GetFullUserRequest(event.query.user_id))
+            ok = event.query.user_id
+            first_name = html.escape(target.user.first_name)
+            if first_name is not None:
+                first_name = first_name.replace("\u2060", "")
+            first_name = html.escape(target.user.first_name)
+            await tgbot.send_message(
+                LOG_GP,
+                f"[{first_name}](tg://user?id={ok}) tried to **spam** your inbox.\nHenceforth, **blocked**",
+            )
+
+    @tgbot.on(events.callbackquery.CallbackQuery(data=re.compile(b"close")))
+    async def on_plug_in_callback_query_handler(event):
+        if event.query.user_id == bot.uid:
+            await event.edit(
+                "Menu Closed!!", buttons=[Button.inline("Re-open Menu", data="reopen")]
+            )
+        else:
+            reply_pop_up_alert = "Please get your own userbot from @TeleBotSupport "
+            await event.answer(reply_pop_up_alert, cache_time=0, alert=True)
+
+    @tgbot.on(events.callbackquery.CallbackQuery(data=re.compile(b"statcheck")))
+    async def rip(event):
+        text = telestats
+        await event.answer(text, alert=True)
+
+    @tgbot.on(
+        events.callbackquery.CallbackQuery(  # pylint:disable=E0602
+            data=re.compile(rb"helpme_prev\((.+?)\)")
+        )
+    )
+    async def on_plug_in_callback_query_handler(event):
+        if event.query.user_id == bot.uid:  # pylint:disable=E0602
+            current_page_number = int(event.data_match.group(1).decode("UTF-8"))
+            buttons = paginate_help(
+                current_page_number - 1, CMD_LIST, "helpme"  # pylint:disable=E0602
+            )
+            # https://t.me/TelethonChat/115200
+            await event.edit(buttons=buttons)
+        else:
+            reply_pop_up_alert = "Please get your own Userbot, and don't use mine!"
+            await event.answer(reply_pop_up_alert, cache_time=0, alert=True)
+
+    @tgbot.on(
+        events.callbackquery.CallbackQuery(  # pylint:disable=E0602
+            data=re.compile(b"us_plugin_(.*)")
+        )
+    )
+    async def on_plug_in_callback_query_handler(event):
+        if event.query.user_id == bot.uid:
+            plugin_name = event.data_match.group(1).decode("UTF-8")
+            help_string = ""
+            help_string += f"Commands Available in {plugin_name} - \n"
+            try:
+                if plugin_name in CMD_HELP:
+                    for i in CMD_HELP[plugin_name]:
+                        help_string += i
+                    help_string += "\n"
+                else:
+                    for i in CMD_LIST[plugin_name]:
+                        help_string += i
+                        help_string += "\n"
+            except BaseException:
+                pass
+            if help_string == "":
+                reply_pop_up_alert = "{} has no detailed info.\nUse .help {}".format(
+                    plugin_name, plugin_name
                 )
             else:
-                reply_pop_up_alert = notmine
-                await event.answer(reply_pop_up_alert, cache_time=0)
-        except BaseException:
-            halps = "Do .help {} to get the list of commands.".format(plugin_name)
-            await event.edit(halps)
+                reply_pop_up_alert = help_string
+            reply_pop_up_alert += "\n Use .unload {} to remove this plugin\n\
+                © Telebot".format(
+                plugin_name
+            )
+            if len(help_string) >= 140:
+                oops = "List too long!\nCheck your saved messages!"
+                await event.answer(oops, cache_time=0, alert=True)
+                help_string += "\n\nThis will be auto-deleted in 1 minute!"
+                if bot is not None and event.query.user_id == bot.uid:
+                    ok = await bot.send_message("me", help_string)
+                    await asyncio.sleep(60)
+                    await ok.delete()
+            else:
+                await event.answer(reply_pop_up_alert, cache_time=0, alert=True)
+        else:
+            reply_pop_up_alert = "Please get your own Userbot, and don't use mine!"
+            await event.answer(reply_pop_up_alert, cache_time=0, alert=True)
 
 
 def paginate_help(page_number, loaded_plugins, prefix):
-    number_of_rows = 5
-    number_of_cols = 2
-    emoji = Redis("EMOJI_IN_HELP")
-    if emoji:
-        multi, mult2i = emoji, emoji
-    else:
-        multi, mult2i = "✘", "✘"
+    number_of_rows = HELP_ROWS
+    number_of_cols = HELP_COLOUMNS
+    tele = CUSTOM_HELP_EMOJI
     helpable_plugins = []
-    global upage
-    upage = page_number
     for p in loaded_plugins:
         if not p.startswith("_"):
             helpable_plugins.append(p)
     helpable_plugins = sorted(helpable_plugins)
     modules = [
-        Button.inline(
-            "{} {} {}".format(
-                random.choice(list(multi)), x, random.choice(list(mult2i))
-            ),
-            data="us_plugin_{}".format(x),
+        custom.Button.inline(
+            "{} {} {}".format(tele, x, tele), data="us_plugin_{}".format(x)
         )
         for x in helpable_plugins
     ]
@@ -497,67 +369,21 @@ def paginate_help(page_number, loaded_plugins, prefix):
             modulo_page * number_of_rows : number_of_rows * (modulo_page + 1)
         ] + [
             (
-                Button.inline(
-                    "<- Pʀᴇᴠɪᴏᴜs", data="{}_prev({})".format(prefix, modulo_page)
+                custom.Button.inline(
+                    "⫷ Previous", data="{}_prev({})".format(prefix, modulo_page)
                 ),
-                Button.inline("-Bᴀᴄᴋ-", data="open"),
-                Button.inline(
-                    "Nᴇxᴛ ->", data="{}_next({})".format(prefix, modulo_page)
-                ),
-            )
-        ]
-    else:
-        pairs = pairs[
-            modulo_page * number_of_rows : number_of_rows * (modulo_page + 1)
-        ] + [(Button.inline("-Bᴀᴄᴋ-", data="open"),)]
-    return pairs
-
-
-def paginate_addon(page_number, loaded_plugins, prefix):
-    number_of_rows = 5
-    number_of_cols = 2
-    emoji = Redis("EMOJI_IN_HELP")
-    if emoji:
-        multi, mult2i = emoji, emoji
-    else:
-        multi, mult2i = "✘", "✘"
-    helpable_plugins = []
-    global addpage
-    addpage = page_number
-    for p in loaded_plugins:
-        if not p.startswith("_"):
-            helpable_plugins.append(p)
-    helpable_plugins = sorted(helpable_plugins)
-    modules = [
-        Button.inline(
-            "{} {} {}".format(
-                random.choice(list(multi)), x, random.choice(list(mult2i))
-            ),
-            data="add_plugin_{}".format(x),
-        )
-        for x in helpable_plugins
-    ]
-    pairs = list(zip(modules[::number_of_cols], modules[1::number_of_cols]))
-    if len(modules) % number_of_cols == 1:
-        pairs.append((modules[-1],))
-    max_num_pages = ceil(len(pairs) / number_of_rows)
-    modulo_page = page_number % max_num_pages
-    if len(pairs) > number_of_rows:
-        pairs = pairs[
-            modulo_page * number_of_rows : number_of_rows * (modulo_page + 1)
-        ] + [
-            (
-                Button.inline(
-                    "<- Pʀᴇᴠɪᴏᴜs", data="{}_prev({})".format(prefix, modulo_page)
-                ),
-                Button.inline("-Bᴀᴄᴋ-", data="open"),
-                Button.inline(
-                    "Nᴇxᴛ ->", data="{}_next({})".format(prefix, modulo_page)
+                custom.Button.inline("║ Close ║", data="close"),
+                custom.Button.inline(
+                    "Next ⫸", data="{}_next({})".format(prefix, modulo_page)
                 ),
             )
         ]
-    else:
-        pairs = pairs[
-            modulo_page * number_of_rows : number_of_rows * (modulo_page + 1)
-        ] + [(Button.inline("-Bᴀᴄᴋ-", data="open"),)]
     return pairs
+
+
+async def userinfo(event):
+    target = await event.client(GetFullUserRequest(event.query.user_id))
+    first_name = html.escape(target.user.first_name)
+    if first_name is not None:
+        first_name = first_name.replace("\u2060", "")
+    return first_name

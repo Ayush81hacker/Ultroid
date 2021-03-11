@@ -1,66 +1,74 @@
-# Ultroid - UserBot
-# Copyright (C) 2020 TeamUltroid
-#
-# This file is a part of < https://github.com/TeamUltroid/Ultroid/ >
-# PLease read the GNU Affero General Public License in
-# <https://www.github.com/TeamUltroid/Ultroid/blob/main/LICENSE/>.
+#    TeleBot - UserBot
+#    Copyright (C) 2020 TeleBot
 
-import time
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Affero General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
 
-from pyUltroid import *
-from pyUltroid.dB import *
-from pyUltroid.dB.core import *
-from pyUltroid.functions import *
-from pyUltroid.functions.all import *
-from pyUltroid.functions.broadcast_db import *
-from pyUltroid.functions.gban_mute_db import *
-from pyUltroid.functions.google_image import googleimagesdownload
-from pyUltroid.functions.sudos import *
-from pyUltroid.utils import *
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU Affero General Public License for more details.
 
-start_time = time.time()
-ultroid_version = "v0.0.3"
-OWNER_NAME = ultroid_bot.me.first_name
-OWNER_ID = ultroid_bot.me.id
+#    You should have received a copy of the GNU Affero General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+from telethon.tl.types import Channel
+
+from telebot import *
+from telebot import ALIVE_NAME, bot, telever
+from telebot.telebotConfig import Config, Var
+
+# stats
+if Var.PRIVATE_GROUP_ID:
+    log = "Enabled"
+else:
+    log = "Disabled"
+
+if Config.TG_BOT_USER_NAME_BF_HER:
+    bots = "Enabled"
+else:
+    bots = "Disabled"
+
+if Var.LYDIA_API_KEY:
+    lyd = "Enabled"
+else:
+    lyd = "Disabled"
+
+if Config.SUDO_USERS:
+    sudo = "Disabled"
+else:
+    sudo = "Enabled"
+
+if Var.PMSECURITY.lower() == "off":
+    pm = "Disabled"
+else:
+    pm = "Enabled"
+
+TELEUSER = str(ALIVE_NAME) if ALIVE_NAME else "@TeleBotSupport"
+
+tele = f"TeleBot Version: {telever}\n"
+tele += f"Log Group: {log}\n"
+tele += f"Assistant Bot: {bots}\n"
+tele += f"Lydia: {lyd}\n"
+tele += f"Sudo: {sudo}\n"
+tele += f"PMSecurity: {pm}\n"
+tele += f"\nVisit @TeleBotSupport for assistance.\n"
+telestats = f"{tele}"
+
+TELE_NAME = bot.me.first_name
+OWNER_ID = bot.me.id
+
+# count total number of groups
 
 
-def grt(seconds: int) -> str:
-    count = 0
-    up_time = ""
-    time_list = []
-    time_suffix_list = ["s", "m", "h", "days"]
-
-    while count < 4:
-        count += 1
-        if count < 3:
-            remainder, result = divmod(seconds, 60)
-        else:
-            remainder, result = divmod(seconds, 24)
-        if seconds == 0 and remainder == 0:
-            break
-        time_list.append(int(result))
-        seconds = int(remainder)
-
-    for x in range(len(time_list)):
-        time_list[x] = str(time_list[x]) + time_suffix_list[x]
-    if len(time_list) == 4:
-        up_time += time_list.pop() + ", "
-
-    time_list.reverse()
-    up_time += ":".join(time_list)
-
-    return up_time
-
-
-KANGING_STR = [
-    "Using Witchery to kang this sticker...",
-    "Plagiarising hehe...",
-    "Inviting this sticker over to my pack...",
-    "Kanging this sticker...",
-    "Hey that's a nice sticker!\nMind if I kang?!..",
-    "Hehe me stel ur stiker...",
-    "Ay look over there (☉｡☉)!→\nWhile I kang this...",
-    "Roses are red violets are blue, kanging this sticker so my pack looks cool",
-    "Imprisoning this sticker...",
-    "Mr.Steal-Your-Sticker is stealing this sticker... ",
-]
+async def tele_grps(event):
+    a = []
+    async for dialog in event.client.iter_dialogs():
+        entity = dialog.entity
+        if isinstance(entity, Channel):
+            if entity.megagroup:
+                if entity.creator or entity.admin_rights:
+                    a.append(entity.id)
+    return len(a), a
