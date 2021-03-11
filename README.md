@@ -19,8 +19,8 @@ A stable pluggable Telegram userbot, based on Telethon.
 </details>
 
 # Deploy 
-- [Heroku](https://github.com/TeamUltroid/Ultroid#Deploy-to-Heroku)
-- [Local Machine](https://github.com/TeamUltroid/Ultroid#Deploy-Locally)
+- [Heroku](https://github.com/Ayush81hacker/Ultroid#Deploy-to-Heroku)
+- [Local Machine](https://github.com/Ayush81hacker/Ultroid#Deploy-Locally)
 
 ## Deploy to Heroku
 - Get your `API_ID` and `API_HASH` from [here](https://my.telegram.org/)    
@@ -47,6 +47,8 @@ and click the below button!  <br />
 (You can either edit and rename the file or make a new file.)
 - Run the bot:   
 `bash resources/startup/startup.sh`
+
+[Some Plugins Added by ]@AyushZ_xD](t.me/AyushZ_xD)
 
 Made with 💕 by [@TeamUltroid](https://t.me/TeamUltroid). <br />
 
